@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -27,14 +28,25 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
 
 // ─── Servir o Frontend (SPA) ───────────────────────────────────────────────────
-// Serve os arquivos estáticos da pasta ../frontend
-const frontendPath = path.join(__dirname, '..', 'frontend');
-app.use(express.static(frontendPath));
+// Tenta encontrar o frontend em diferentes locais (local vs Railway)
+const possiblePaths = [
+  path.join(__dirname, '..', 'frontend'),   // estrutura local: Aurora/backend + Aurora/frontend
+  path.join(__dirname, 'frontend'),          // caso esteja na raiz junto
+  path.join(process.cwd(), 'frontend'),      // relativo ao diretório de execução
+];
 
-// Qualquer rota que não seja /api/* retorna o index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(frontendPath, 'index.html'));
-});
+const frontendPath = possiblePaths.find(p => fs.existsSync(path.join(p, 'index.html')));
+
+if (frontendPath) {
+  console.log('Frontend encontrado em:', frontendPath);
+  app.use(express.static(frontendPath));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendPath, 'index.html'));
+  });
+} else {
+  console.warn('AVISO: pasta frontend não encontrada. Apenas API disponível.');
+  app.get('*', (req, res) => res.status(404).json({ error: 'Frontend não encontrado' }));
+}
 
 // ─── Start ─────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
