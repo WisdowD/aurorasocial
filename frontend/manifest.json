@@ -1,0 +1,22 @@
+{
+  "name": "Aurora",
+  "short_name": "Aurora",
+  "description": "Sua rede social",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0d14",
+  "theme_color": "#00e5a0",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "aurora-boreal-menor.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "aurora-boreal.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
