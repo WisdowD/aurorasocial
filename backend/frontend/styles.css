@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════
-   FORTE (FONTE)
+   FORTE FONT (embedded)
 ══════════════════════════════════════════════════ */
 @font-face {
   font-family: 'Forte';
@@ -243,12 +243,13 @@ a {
 ═══════════════════════════════════════════════════ */
 #app {
   display: none;
-  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .app-layout {
   display: flex;
-  min-height: 100dvh;
+  height: 100dvh;
   max-width: 1200px;
   margin: 0 auto;
 }
@@ -429,6 +430,8 @@ a {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .feed-header {
@@ -605,6 +608,8 @@ a {
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
 }
 
 .scroll-area::-webkit-scrollbar {
@@ -1591,10 +1596,29 @@ textarea.input {
 
   .feed-column {
     border-right: none;
+    height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .page.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
   }
 
   #app {
     position: relative;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .app-layout {
+    height: 100dvh;
+    overflow: hidden;
   }
 
   .mobile-nav {
@@ -1711,3 +1735,7 @@ textarea.input {
   line-height: 1.4;
   padding: 8px 12px;
 }
+
+/* ══════════════════════════════════════════════════
+   TRENDING HOVER
+══════════════════════════════════════════════════ */
