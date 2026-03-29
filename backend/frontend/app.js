@@ -554,8 +554,6 @@ function renderProfile(user, isMe) {
     <div class="tab-bar" style="position:static">
       <button class="tab active" data-ptab="posts" onclick="setProfileTab('posts',${user.id})">Posts</button>
       <button class="tab" data-ptab="comments" onclick="setProfileTab('comments',${user.id})">Respostas</button>
-      <button class="tab" data-ptab="followers" onclick="setProfileTab('followers',${user.id})">Seguidores</button>
-      <button class="tab" data-ptab="following" onclick="setProfileTab('following',${user.id})">Seguindo</button>
       <button class="tab" data-ptab="saved" onclick="setProfileTab('saved',${user.id})">Salvos</button>
     </div>
     <div id="profile-posts"></div>`;
