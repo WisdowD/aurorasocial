@@ -203,6 +203,7 @@ function renderPosts(c, posts) {
   c.innerHTML = posts.map(postCard).join('');
 }
 function postCard(p) {
+  const isOwner = state.user && p.author?.id === state.user.id;
   return `<div class="card" data-post-id="${p.id}" onclick="navigate('profile',{userId:${p.author?.id}})" style="cursor:pointer">
     <div class="post-header">
       <div style="flex-shrink:0" onclick="event.stopPropagation();navigate('profile',{userId:${p.author?.id}})">${avatarHtml(p.author, 'sm')}</div>
@@ -210,6 +211,9 @@ function postCard(p) {
         <div class="post-author-name">${escHtml(p.author?.username || 'Usuário')}</div>
         <div class="post-author-handle">@${escHtml(p.author?.handle || '')} · ${timeAgo(p.created_at)}</div>
       </div>
+      ${isOwner ? `<button class="post-action post-delete-btn" title="Excluir post" onclick="event.stopPropagation();deletePost(${p.id},this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+      </button>` : ''}
     </div>
     <div class="post-content" onclick="event.stopPropagation()">${escHtml(p.content)}</div>
     ${p.image_url ? `<img class="post-image" src="${escHtml(p.image_url)}" alt="" loading="lazy" onclick="event.stopPropagation()">` : ''}
@@ -231,6 +235,15 @@ function postCard(p) {
       </button>
     </div>
   </div>`;
+}
+async function deletePost(id, btn) {
+  if (!confirm('Excluir este post?')) return;
+  try {
+    await api(`/posts/${id}`, { method: 'DELETE' });
+    const card = btn.closest('[data-post-id]');
+    if (card) { card.style.transition = 'opacity 0.2s'; card.style.opacity = '0'; setTimeout(() => card.remove(), 200); }
+    toast('Post excluído!', 'success');
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 /* ── Interactions ── */
