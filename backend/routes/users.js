@@ -90,6 +90,38 @@ router.put('/me', authMiddleware, async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Erro interno' }); }
 });
 
+// GET /api/users/:id/followers
+router.get('/:id/followers', authMiddleware, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const users = await db.all(
+      `SELECT u.id, u.username, u.handle, u.bio, u.avatar_url
+       FROM users u
+       INNER JOIN follows f ON f.follower_id = u.id
+       WHERE f.following_id = ?
+       ORDER BY f.created_at DESC`,
+      [userId]
+    );
+    res.json(await Promise.all(users.map(u => enrichUser(u, req.userId))));
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Erro interno' }); }
+});
+
+// GET /api/users/:id/following
+router.get('/:id/following', authMiddleware, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const users = await db.all(
+      `SELECT u.id, u.username, u.handle, u.bio, u.avatar_url
+       FROM users u
+       INNER JOIN follows f ON f.following_id = u.id
+       WHERE f.follower_id = ?
+       ORDER BY f.created_at DESC`,
+      [userId]
+    );
+    res.json(await Promise.all(users.map(u => enrichUser(u, req.userId))));
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Erro interno' }); }
+});
+
 // POST /api/users/:id/follow
 router.post('/:id/follow', authMiddleware, async (req, res) => {
   const targetId = parseInt(req.params.id);
