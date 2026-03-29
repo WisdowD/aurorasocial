@@ -26,23 +26,35 @@ async function enrichPost(post, userId) {
   };
 }
 
-// GET /api/posts/feed
+// GET /api/posts/feed  → só posts de quem você segue
 router.get('/feed', authMiddleware, async (req, res) => {
   try {
     const posts = await db.all(`
       SELECT p.* FROM posts p
+      INNER JOIN follows f ON f.following_id = p.user_id
       WHERE p.parent_id IS NULL
-        AND (p.user_id = ? OR p.user_id IN (
-          SELECT following_id FROM follows WHERE follower_id = ?
-        ))
+        AND f.follower_id = ?
       ORDER BY p.created_at DESC
       LIMIT 30 OFFSET ?
-    `, [req.userId, req.userId, parseInt(req.query.offset) || 0]);
+    `, [req.userId, parseInt(req.query.offset) || 0]);
     res.json(await Promise.all(posts.map(p => enrichPost(p, req.userId))));
   } catch (err) { console.error(err); res.status(500).json({ error: 'Erro interno' }); }
 });
 
-// GET /api/posts/popular
+// GET /api/posts/home  → todos os posts (sem filtro)
+router.get('/home', authMiddleware, async (req, res) => {
+  try {
+    const posts = await db.all(`
+      SELECT p.* FROM posts p
+      WHERE p.parent_id IS NULL
+      ORDER BY p.created_at DESC
+      LIMIT 30 OFFSET ?
+    `, [parseInt(req.query.offset) || 0]);
+    res.json(await Promise.all(posts.map(p => enrichPost(p, req.userId))));
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Erro interno' }); }
+});
+
+// GET /api/posts/popular  → posts com 2+ curtidas
 router.get('/popular', authMiddleware, async (req, res) => {
   try {
     const posts = await db.all(`
@@ -50,6 +62,7 @@ router.get('/popular', authMiddleware, async (req, res) => {
       LEFT JOIN likes l ON l.post_id = p.id
       WHERE p.parent_id IS NULL
       GROUP BY p.id
+      HAVING like_count >= 2
       ORDER BY like_count DESC, p.created_at DESC
       LIMIT 30 OFFSET ?
     `, [parseInt(req.query.offset) || 0]);
@@ -101,9 +114,21 @@ router.post('/', authMiddleware, async (req, res) => {
   const { content, image_url, parent_id } = req.body;
   if (!content || !content.trim()) return res.status(400).json({ error: 'Conteúdo obrigatório' });
   try {
+    // Limita image_url a URLs externas (não base64 grande demais)
+    let safeImageUrl = null;
+    if (image_url) {
+      if (image_url.startsWith('http://') || image_url.startsWith('https://')) {
+        safeImageUrl = image_url;
+      } else if (image_url.startsWith('data:image/')) {
+        // Aceita base64 mas limita a 2MB
+        if (image_url.length < 2 * 1024 * 1024) {
+          safeImageUrl = image_url;
+        }
+      }
+    }
     const result = await db.run(
       'INSERT INTO posts (user_id, content, image_url, parent_id) VALUES (?, ?, ?, ?)',
-      [req.userId, content.trim(), image_url || null, parent_id || null]
+      [req.userId, content.trim(), safeImageUrl, parent_id || null]
     );
     if (parent_id) {
       const original = await db.get('SELECT user_id FROM posts WHERE id = ?', [parent_id]);

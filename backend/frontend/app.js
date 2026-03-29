@@ -186,8 +186,16 @@ async function loadFeed(tab) {
   const c = document.getElementById('feed-posts');
   c.innerHTML = `<div class="loader"><div class="spinner"></div></div>`;
   try {
-    const posts = await api(tab === 'popular' ? '/posts/popular' : '/posts/feed');
-    renderPosts(c, posts);
+    let endpoint;
+    if (tab === 'popular') endpoint = '/posts/popular';
+    else if (tab === 'home') endpoint = '/posts/home';
+    else endpoint = '/posts/feed'; // 'following'
+    const posts = await api(endpoint);
+    if (!posts.length && tab === 'following') {
+      c.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg><p>Siga alguém para ver posts aqui!</p></div>`;
+    } else {
+      renderPosts(c, posts);
+    }
   } catch { c.innerHTML = `<div class="empty-state"><p>Erro ao carregar.</p></div>`; }
 }
 function renderPosts(c, posts) {
@@ -425,7 +433,7 @@ async function initSearch() { document.getElementById('search-input').value = ''
 async function loadHighlights() {
   const c = document.getElementById('search-results');
   c.innerHTML = `<div class="loader"><div class="spinner"></div></div>`;
-  try { const p = await api('/posts/popular'); c.innerHTML = p.slice(0, 10).map(postCard).join(''); } catch { c.innerHTML = ''; }
+  try { const p = await api('/posts/home'); c.innerHTML = p.slice(0, 10).map(postCard).join(''); } catch { c.innerHTML = ''; }
 }
 function handleSearch(v) { clearTimeout(searchTimer); searchTimer = setTimeout(() => doSearch(v.trim()), 350); }
 async function doSearch(q) {
@@ -525,17 +533,17 @@ function renderProfile(user, isMe) {
       <div class="profile-handle">@${escHtml(user.handle)}</div>
       ${user.bio ? `<div class="profile-bio">${escHtml(user.bio)}</div>` : ''}
       <div class="profile-stats">
-        <div class="stat-item" onclick="setProfileTab('followers',${user.id})">
+        <div class="stat-item" onclick="setProfileTab('followers',${user.id})" title="Ver seguidores">
           <div class="stat-value">${user.followers ?? 0}</div>
-          <div class="stat-label">Seguidores</div>
+          <div class="stat-label">Seguidores ↗</div>
         </div>
-        <div class="stat-item">
+        <div class="stat-item" style="cursor:default" onclick="setProfileTab('posts',${user.id})">
           <div class="stat-value">${user.posts_count ?? 0}</div>
           <div class="stat-label">Posts</div>
         </div>
-        <div class="stat-item" onclick="setProfileTab('following',${user.id})">
+        <div class="stat-item" onclick="setProfileTab('following',${user.id})" title="Ver seguindo">
           <div class="stat-value">${user.following ?? 0}</div>
-          <div class="stat-label">Seguindo</div>
+          <div class="stat-label">Seguindo ↗</div>
         </div>
       </div>
       ${isMe

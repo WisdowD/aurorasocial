@@ -1,22 +1,33 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
-const raw = new sqlite3.Database(path.join(__dirname, 'social.db'));
+// No Railway: defina RAILWAY_VOLUME_MOUNT_PATH ou DB_PATH como variável de ambiente
+// apontando para o Volume montado (ex: /data)
+// Localmente usa a pasta do backend mesmo
+const dbDir = process.env.DB_PATH || process.env.RAILWAY_VOLUME_MOUNT_PATH || __dirname;
+
+// Garante que o diretório existe
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+const dbFile = path.join(dbDir, 'social.db');
+console.log('Banco de dados em:', dbFile);
+
+const raw = new sqlite3.Database(dbFile);
 
 const db = {
-  // SELECT vários rows
   all(sql, params = []) {
     return new Promise((resolve, reject) => {
       raw.all(sql, params, (err, rows) => err ? reject(err) : resolve(rows || []));
     });
   },
-  // SELECT um row
   get(sql, params = []) {
     return new Promise((resolve, reject) => {
       raw.get(sql, params, (err, row) => err ? reject(err) : resolve(row || null));
     });
   },
-  // INSERT / UPDATE / DELETE  → resolve({ lastID, changes })
   run(sql, params = []) {
     return new Promise((resolve, reject) => {
       raw.run(sql, params, function(err) {
@@ -25,15 +36,12 @@ const db = {
       });
     });
   },
-  // Executa múltiplos statements de uma vez
   exec(sql) {
     return new Promise((resolve, reject) => {
       raw.exec(sql, err => err ? reject(err) : resolve());
     });
   }
 };
-
-// ─── Inicialização ────────────────────────────────────────────────────────────
 
 async function init() {
   await db.run('PRAGMA journal_mode = WAL');

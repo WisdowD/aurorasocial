@@ -934,6 +934,14 @@ body.light .profile-banner {
 
 .stat-item {
   cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: background var(--transition);
+  text-align: center;
+}
+
+.stat-item:hover {
+  background: var(--surface-hover);
 }
 
 .stat-value {
