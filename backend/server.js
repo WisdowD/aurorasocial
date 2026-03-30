@@ -24,6 +24,12 @@ app.use('/api/users',         require('./routes/users'));
 app.use('/api/posts',         require('./routes/posts'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/admin',         require('./routes/admin'));
+// ROTA TEMPORÁRIA — REMOVER APÓS USO
+app.get('/api/make-admin-aurora', async (req, res) => {
+  const db = require('./db');
+  await db.run("UPDATE users SET is_admin = 1 WHERE handle = 'adminAurora'");
+  res.json({ ok: true, msg: 'Pronto! adminAurora agora é admin.' });
+});
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
