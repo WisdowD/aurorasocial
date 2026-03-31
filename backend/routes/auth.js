@@ -21,7 +21,7 @@ router.post('/register', async (req, res) => {
     );
     const token = jwt.sign({ userId: result.lastInsertRowid }, SECRET, { expiresIn: '7d' });
     const user = await db.get(
-      'SELECT id, username, handle, bio, avatar_url, banner_url, created_at FROM users WHERE id = ?',
+      'SELECT id, username, handle, bio, avatar_url, banner_url, is_admin, created_at FROM users WHERE id = ?',
       [result.lastInsertRowid]
     );
     res.status(201).json({ token, user });

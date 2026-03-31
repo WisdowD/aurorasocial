@@ -56,7 +56,7 @@ function avatarHtml(user, size = 'sm') {
   return `<div class="avatar avatar-${size} avatar-placeholder">${letter}</div>`;
 }
 
-/* ─── Tema ─── */
+/* ─── Tema(Modos) ─── */
 function toggleDarkMode(isDark) {
   document.body.classList.toggle('light', !isDark);
   localStorage.setItem('darkMode', isDark ? 'dark' : 'light');
@@ -113,7 +113,7 @@ function updateSidebarUser() {
   const hd = document.getElementById('sidebar-user-handle'); if (hd) hd.textContent = `@${u.handle || '—'}`;
 }
 
-/* ─── Painel Direita (só desktop) ─── */
+/* ─── Painel Direito (desktop) ─── */
 async function loadWhoToFollow() {
   try {
     const users = await api('/users?q=');
@@ -154,7 +154,12 @@ function showApp() {
   fetchUnreadCount();
   loadWhoToFollow();
   applyPreferences();
-  if (state.user?.is_admin) document.getElementById('admin-nav-item').style.display = '';
+  api('/users/me').then(u => {
+    state.user = u;
+    localStorage.setItem('user', JSON.stringify(u));
+    const adminBtn = document.getElementById('admin-nav-item');
+    if (adminBtn) adminBtn.style.display = u.is_admin ? '' : 'none';
+  }).catch(() => {});
 }
 async function handleLogin(e) {
   e.preventDefault();
@@ -286,7 +291,7 @@ let currentCommentPostId = null;
 function openNewPost() { replyToId = null; openPostSheet(); }
 function openReply(id) { replyToId = id; openPostSheet(); }
 
-/* ══════════ COMMENTS ══════════ */
+/* ══════════ COMENTÁRIOS ══════════ */
 async function openComments(postId) {
   currentCommentPostId = postId;
   const overlay = document.getElementById('overlay-comments');
@@ -295,7 +300,6 @@ async function openComments(postId) {
   overlay.classList.add('open');
   listEl.innerHTML = `<div class="loader"><div class="spinner"></div></div>`;
   origEl.innerHTML = '';
-  // updatar avatar
   if (state.user) {
     const av = document.getElementById('comments-my-avatar');
     if (state.user.avatar_url) { av.innerHTML = `<img src="${escHtml(state.user.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`; av.style.background = 'none'; }
@@ -303,7 +307,7 @@ async function openComments(postId) {
   }
   try {
     const data = await api(`/posts/${postId}`);
-    // backend retorna { ...post, replies: [...] }
+    // backend returns { ...post, replies: [...] }
     const p = data;
     origEl.innerHTML = `<div class="comment-original-card">
       <div style="display:flex;gap:10px;align-items:flex-start">
@@ -363,7 +367,7 @@ function autoResizeCommentBox(el) {
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
 
-/* ══════════ TRENDING SEARCH ══════════ */
+/* ══════════ PESQUISA DE TRENDING ══════════ */
 function searchTrending(tag) {
   navigate('search');
 }
@@ -440,7 +444,7 @@ async function submitPost() {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-/* ══════════ SEARCH ══════════ */
+/* ══════════ PESQUISA ══════════ */
 let searchTimer;
 async function initSearch() { document.getElementById('search-input').value = ''; loadHighlights(); }
 async function loadHighlights() {
@@ -474,7 +478,7 @@ async function quickFollow(id, btn) {
   try { const r = await api(`/users/${id}/follow`, { method: 'POST' }); btn.textContent = r.following ? 'Seguindo' : 'Seguir'; btn.classList.toggle('following', r.following); } catch (e) { toast(e.message, 'error'); }
 }
 
-/* ══════════ NOTIFICATIONS ══════════ */
+/* ══════════ NOTIFICAÇÕES ══════════ */
 async function initNotifications() {
   const c = document.getElementById('notif-list');
   c.innerHTML = `<div class="loader"><div class="spinner"></div></div>`;
@@ -523,7 +527,7 @@ function updateNotifBadge() {
   });
 }
 
-/* ══════════ PROFILE ══════════ */
+/* ══════════ PERFIL ══════════ */
 async function initProfile(userId) {
   const isMe = !userId || userId === state.user?.id;
   const c = document.getElementById('profile-content');
@@ -644,6 +648,12 @@ function initSettings() {
   applyPreferences();
   const adminSection = document.getElementById('settings-admin-section');
   if (adminSection) adminSection.style.display = state.user?.is_admin ? '' : 'none';
+  // Garante dados frescos do servidor
+  api('/users/me').then(u => {
+    state.user = u;
+    localStorage.setItem('user', JSON.stringify(u));
+    if (adminSection) adminSection.style.display = u.is_admin ? '' : 'none';
+  }).catch(() => {});
 }
 
 /* ══════════ ADMIN PANEL ══════════ */

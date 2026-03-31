@@ -3,7 +3,6 @@ const router = express.Router();
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
-// Helper: enrich user with counts
 async function enrichUser(user, requesterId) {
   if (!user) return null;
   const [r1, r2, r3, r4] = await Promise.all([
@@ -27,7 +26,7 @@ async function enrichUser(user, requesterId) {
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await db.get(
-      'SELECT id, username, handle, bio, avatar_url, banner_url, created_at FROM users WHERE id = ?',
+      'SELECT id, username, handle, bio, avatar_url, banner_url, is_admin, created_at FROM users WHERE id = ?',
       [req.userId]
     );
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' });
@@ -47,12 +46,11 @@ router.get('/', authMiddleware, async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Erro interno' }); }
 });
 
-// GET /api/users/:idOrHandle — busca por ID numérico OU handle
+// GET /api/users/:id — busca por ID numérico OU handle
 router.get('/:idOrHandle', authMiddleware, async (req, res) => {
   try {
     const param = req.params.idOrHandle;
     let user;
-    // Se for número, busca por ID; senão busca por handle
     if (/^\d+$/.test(param)) {
       user = await db.get(
         'SELECT id, username, handle, bio, avatar_url, banner_url, created_at FROM users WHERE id = ?',
