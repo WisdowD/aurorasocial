@@ -367,14 +367,6 @@ function autoResizeCommentBox(el) {
 /* ══════════ TRENDING SEARCH ══════════ */
 function searchTrending(tag) {
   navigate('search');
-  setTimeout(() => {
-    const input = document.getElementById('search-input');
-    if (input) {
-      input.value = tag;
-      handleSearch(tag);
-      input.focus();
-    }
-  }, 50);
 }
 let postImageDataUrl = null;
 
