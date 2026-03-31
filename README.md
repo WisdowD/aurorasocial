@@ -1,4 +1,4 @@
-# Nexus Social — PWA + Node.js + SQLite
+# Aurora Rede Social — PWA + Node.js + SQLite
 
 Rede social completa baseada no design do Figma.
 
@@ -109,8 +109,3 @@ GET  /api/notifications/unread-count
 
 ---
 
-## 🛠️ Para produção
-
-1. Troque `JWT_SECRET` no `.env` por uma chave forte
-2. Configure `FRONTEND_URL` no `.env` com o domínio real
-3. Use um servidor HTTPS (obrigatório para PWA instalável)
