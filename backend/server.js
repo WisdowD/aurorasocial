@@ -28,6 +28,21 @@ app.use('/api/admin',         require('./routes/admin'));
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
 
+// ROTA TEMPORÁRIA — forçar migração updated_at — REMOVER APÓS USO
+app.get('/api/run-migration', async (req, res) => {
+  const db = require('./db');
+  try {
+    const cols = await db.all("PRAGMA table_info(posts)");
+    const names = cols.map(c => c.name);
+    if (!names.includes('updated_at')) {
+      await db.run("ALTER TABLE posts ADD COLUMN updated_at DATETIME DEFAULT NULL");
+      res.json({ ok: true, msg: 'Coluna updated_at criada com sucesso!' });
+    } else {
+      res.json({ ok: true, msg: 'Coluna updated_at já existe.' });
+    }
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ─── Servir o Frontend (SPA) ───────────────────────────────────────────────────
 const possiblePaths = [
   path.join(__dirname, '..', 'frontend'),   
