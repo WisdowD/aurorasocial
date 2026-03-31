@@ -56,7 +56,7 @@ function avatarHtml(user, size = 'sm') {
   return `<div class="avatar avatar-${size} avatar-placeholder">${letter}</div>`;
 }
 
-/* ─── Theme ─── */
+/* ─── Tema ─── */
 function toggleDarkMode(isDark) {
   document.body.classList.toggle('light', !isDark);
   localStorage.setItem('darkMode', isDark ? 'dark' : 'light');
@@ -86,13 +86,13 @@ function applyPreferences() {
   }
 }
 
-/* ─── Navigation ─── */
+/* ─── Nav ─── */
 function navigate(page, data = {}) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   const el = document.getElementById(`page-${page}`);
   if (el) el.classList.add('active');
 
-  // sidebar items
+  // sidebar itens
   document.querySelectorAll('.sidebar-item[data-page]').forEach(n => n.classList.toggle('active', n.dataset.page === page));
   document.querySelectorAll('.mobile-nav-item[data-page]').forEach(n => n.classList.toggle('active', n.dataset.page === page));
 
@@ -113,7 +113,7 @@ function updateSidebarUser() {
   const hd = document.getElementById('sidebar-user-handle'); if (hd) hd.textContent = `@${u.handle || '—'}`;
 }
 
-/* ─── Right panel: who to follow ─── */
+/* ─── Painel Direita (só desktop) ─── */
 async function loadWhoToFollow() {
   try {
     const users = await api('/users?q=');
@@ -154,7 +154,6 @@ function showApp() {
   fetchUnreadCount();
   loadWhoToFollow();
   applyPreferences();
-  // Mostrar botão admin se aplicável
   if (state.user?.is_admin) document.getElementById('admin-nav-item').style.display = '';
 }
 async function handleLogin(e) {
@@ -255,7 +254,7 @@ async function deletePost(id, btn) {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-/* ── Interactions ── */
+/* ── Interações ── */
 async function toggleLike(id, btn) {
   try {
     const r = await api(`/posts/${id}/like`, { method: 'POST' });
@@ -280,7 +279,7 @@ async function toggleSave(id, btn) {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-/* ── Post sheet ── */
+/* ── Post ── */
 let replyToId = null;
 let currentCommentPostId = null;
 
@@ -296,7 +295,7 @@ async function openComments(postId) {
   overlay.classList.add('open');
   listEl.innerHTML = `<div class="loader"><div class="spinner"></div></div>`;
   origEl.innerHTML = '';
-  // update my avatar
+  // updatar avatar
   if (state.user) {
     const av = document.getElementById('comments-my-avatar');
     if (state.user.avatar_url) { av.innerHTML = `<img src="${escHtml(state.user.avatar_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`; av.style.background = 'none'; }
@@ -304,7 +303,7 @@ async function openComments(postId) {
   }
   try {
     const data = await api(`/posts/${postId}`);
-    // backend returns { ...post, replies: [...] }
+    // backend retorna { ...post, replies: [...] }
     const p = data;
     origEl.innerHTML = `<div class="comment-original-card">
       <div style="display:flex;gap:10px;align-items:flex-start">
@@ -618,7 +617,6 @@ function openEditProfile() {
   document.getElementById('edit-bio').value = u.bio || '';
   document.getElementById('edit-avatar').value = u.avatar_url || '';
   document.getElementById('edit-banner').value = u.banner_url || '';
-  // populate image previews
   const avatarImg = document.getElementById('edit-avatar-img');
   if (u.avatar_url) { avatarImg.src = u.avatar_url; avatarImg.style.display = 'block'; } else avatarImg.style.display = 'none';
   const bannerImg = document.getElementById('edit-banner-img');
@@ -632,7 +630,6 @@ async function submitEditProfile() {
     const avatar_url = avatarInput.dataset.localSrc || avatarInput.value;
     const banner_url = bannerInput.dataset.localSrc || bannerInput.value;
     const user = await api('/users/me', { method: 'PUT', body: JSON.stringify({ username: document.getElementById('edit-username').value, bio: document.getElementById('edit-bio').value, avatar_url, banner_url }) });
-    // clear local src cache
     avatarInput.dataset.localSrc = ''; bannerInput.dataset.localSrc = '';
     state.user = user; localStorage.setItem('user', JSON.stringify(user));
     document.getElementById('overlay-edit').classList.remove('open');
@@ -643,7 +640,11 @@ async function submitEditProfile() {
 }
 
 /* ══════════ SETTINGS ══════════ */
-function initSettings() { applyPreferences(); }
+function initSettings() {
+  applyPreferences();
+  const adminSection = document.getElementById('settings-admin-section');
+  if (adminSection) adminSection.style.display = state.user?.is_admin ? '' : 'none';
+}
 
 /* ══════════ ADMIN PANEL ══════════ */
 let _banTargetId = null;

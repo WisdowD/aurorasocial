@@ -62,7 +62,7 @@ router.get('/popular', authMiddleware, async (req, res) => {
       LEFT JOIN likes l ON l.post_id = p.id
       WHERE p.parent_id IS NULL
       GROUP BY p.id
-      HAVING like_count >= 2
+      HAVING like_count >= 5
       ORDER BY like_count DESC, p.created_at DESC
       LIMIT 30 OFFSET ?
     `, [parseInt(req.query.offset) || 0]);
@@ -114,13 +114,11 @@ router.post('/', authMiddleware, async (req, res) => {
   const { content, image_url, parent_id } = req.body;
   if (!content || !content.trim()) return res.status(400).json({ error: 'Conteúdo obrigatório' });
   try {
-    // Limita image_url a URLs externas (não base64 grande demais)
     let safeImageUrl = null;
     if (image_url) {
       if (image_url.startsWith('http://') || image_url.startsWith('https://')) {
         safeImageUrl = image_url;
       } else if (image_url.startsWith('data:image/')) {
-        // Aceita base64 mas limita a 2MB
         if (image_url.length < 2 * 1024 * 1024) {
           safeImageUrl = image_url;
         }

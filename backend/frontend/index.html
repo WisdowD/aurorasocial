@@ -321,6 +321,27 @@
               </div>
             </div>
 
+            <!-- Admin (só visível para admins) -->
+            <div class="settings-section" id="settings-admin-section" style="display:none">
+              <div class="settings-section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                Administração
+              </div>
+              <div class="settings-row" onclick="openAdminPanel()" style="cursor:pointer">
+                <span class="settings-row-label">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  </svg>
+                  Painel Admin
+                </span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:var(--text-faint)">
+                  <path d="M9 18l6-6-6-6"/>
+                </svg>
+              </div>
+            </div>
+
             <div class="settings-section">
               <button class="btn btn-danger btn-full" onclick="logout()">Sair da Conta</button>
             </div>
