@@ -3,7 +3,6 @@ const router = express.Router();
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
-// Helper: enrich post with interaction counts
 async function enrichPost(post, userId) {
   const [r1, r2, r3, r4, r5, r6, author] = await Promise.all([
     db.get('SELECT COUNT(*) as c FROM likes WHERE post_id = ?', [post.id]),
@@ -26,14 +25,16 @@ async function enrichPost(post, userId) {
   };
 }
 
-// GET /api/posts/feed  → só posts de quem você segue
+// GET /api/posts/feed  → só posts de quem você  segue
 router.get('/feed', authMiddleware, async (req, res) => {
   try {
     const posts = await db.all(`
       SELECT p.* FROM posts p
       INNER JOIN follows f ON f.following_id = p.user_id
+      INNER JOIN users u ON u.id = p.user_id
       WHERE p.parent_id IS NULL
         AND f.follower_id = ?
+        AND u.banned = 0
       ORDER BY p.created_at DESC
       LIMIT 30 OFFSET ?
     `, [req.userId, parseInt(req.query.offset) || 0]);
@@ -54,7 +55,7 @@ router.get('/home', authMiddleware, async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Erro interno' }); }
 });
 
-// GET /api/posts/popular  → posts com 2+ curtidas
+// GET /api/posts/popular  → posts com n+ curtidas(mudarei conforme achar necessário)
 router.get('/popular', authMiddleware, async (req, res) => {
   try {
     const posts = await db.all(`
@@ -62,7 +63,7 @@ router.get('/popular', authMiddleware, async (req, res) => {
       LEFT JOIN likes l ON l.post_id = p.id
       WHERE p.parent_id IS NULL
       GROUP BY p.id
-      HAVING like_count >= 5
+      HAVING like_count >= 2
       ORDER BY like_count DESC, p.created_at DESC
       LIMIT 30 OFFSET ?
     `, [parseInt(req.query.offset) || 0]);
@@ -111,22 +112,23 @@ router.get('/:id', authMiddleware, async (req, res) => {
 
 // POST /api/posts
 router.post('/', authMiddleware, async (req, res) => {
-  const { content, image_url, parent_id } = req.body;
+  const { content, image_url, images, parent_id } = req.body;
   if (!content || !content.trim()) return res.status(400).json({ error: 'Conteúdo obrigatório' });
   try {
-    let safeImageUrl = null;
-    if (image_url) {
-      if (image_url.startsWith('http://') || image_url.startsWith('https://')) {
-        safeImageUrl = image_url;
-      } else if (image_url.startsWith('data:image/')) {
-        if (image_url.length < 2 * 1024 * 1024) {
-          safeImageUrl = image_url;
-        }
-      }
-    }
+    let finalImageUrl = null;
+    const imgList = images && Array.isArray(images) ? images : (image_url ? [image_url] : []);
+    const safeImgs = imgList.filter(url => {
+      if (!url) return false;
+      if (url.startsWith('http://') || url.startsWith('https://')) return true;
+      if (url.startsWith('data:image/') && url.length < 3 * 1024 * 1024) return true;
+      return false;
+    });
+    if (safeImgs.length === 1) finalImageUrl = safeImgs[0];
+    else if (safeImgs.length > 1) finalImageUrl = JSON.stringify(safeImgs);
+
     const result = await db.run(
       'INSERT INTO posts (user_id, content, image_url, parent_id) VALUES (?, ?, ?, ?)',
-      [req.userId, content.trim(), safeImageUrl, parent_id || null]
+      [req.userId, content.trim(), finalImageUrl, parent_id || null]
     );
     if (parent_id) {
       const original = await db.get('SELECT user_id FROM posts WHERE id = ?', [parent_id]);
@@ -139,6 +141,20 @@ router.post('/', authMiddleware, async (req, res) => {
     }
     const post = await db.get('SELECT * FROM posts WHERE id = ?', [result.lastInsertRowid]);
     res.status(201).json(await enrichPost(post, req.userId));
+  } catch (err) { console.error(err); res.status(500).json({ error: 'Erro interno' }); }
+});
+
+// PATCH /api/posts/:id — editar conteúdo do post
+router.patch('/:id', authMiddleware, async (req, res) => {
+  try {
+    const post = await db.get('SELECT * FROM posts WHERE id = ?', [req.params.id]);
+    if (!post) return res.status(404).json({ error: 'Post não encontrado' });
+    if (post.user_id !== req.userId) return res.status(403).json({ error: 'Sem permissão' });
+    const { content } = req.body;
+    if (!content || !content.trim()) return res.status(400).json({ error: 'Conteúdo obrigatório' });
+    await db.run('UPDATE posts SET content = ? WHERE id = ?', [content.trim(), req.params.id]);
+    const updated = await db.get('SELECT * FROM posts WHERE id = ?', [req.params.id]);
+    res.json(await enrichPost(updated, req.userId));
   } catch (err) { console.error(err); res.status(500).json({ error: 'Erro interno' }); }
 });
 

@@ -56,7 +56,7 @@ function avatarHtml(user, size = 'sm') {
   return `<div class="avatar avatar-${size} avatar-placeholder">${letter}</div>`;
 }
 
-/* ─── Tema(Modos) ─── */
+/* ─── Temas ─── */
 function toggleDarkMode(isDark) {
   document.body.classList.toggle('light', !isDark);
   localStorage.setItem('darkMode', isDark ? 'dark' : 'light');
@@ -113,7 +113,7 @@ function updateSidebarUser() {
   const hd = document.getElementById('sidebar-user-handle'); if (hd) hd.textContent = `@${u.handle || '—'}`;
 }
 
-/* ─── Painel Direito (desktop) ─── */
+/* ─── Painel na direita (Opções de quem seguir) ─── */
 async function loadWhoToFollow() {
   try {
     const users = await api('/users?q=');
@@ -203,7 +203,7 @@ async function loadFeed(tab) {
     let endpoint;
     if (tab === 'popular') endpoint = '/posts/popular';
     else if (tab === 'home') endpoint = '/posts/home';
-    else endpoint = '/posts/feed'; // 'following'
+    else endpoint = '/posts/feed'; // 'Seguindo'
     const posts = await api(endpoint);
     if (!posts.length && tab === 'following') {
       c.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg><p>Siga alguém para ver posts aqui!</p></div>`;
@@ -216,11 +216,56 @@ function renderPosts(c, posts) {
   if (!posts.length) { c.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9"/></svg><p>Nada por aqui. Siga alguém!</p></div>`; return; }
   c.innerHTML = posts.map(postCard).join('');
 }
+function parseImages(imageUrl) {
+  if (!imageUrl) return [];
+  try { const arr = JSON.parse(imageUrl); if (Array.isArray(arr)) return arr; } catch {}
+  return [imageUrl];
+}
+function imageCarousel(images, postId) {
+  if (!images.length) return '';
+  if (images.length === 1) {
+    return `<img class="post-image" src="${escHtml(images[0])}" alt="" loading="lazy" onclick="event.stopPropagation()">`;
+  }
+  return `<div class="post-carousel" onclick="event.stopPropagation()">
+    <div class="carousel-track" id="carousel-track-${postId}">
+      ${images.map(src => `<img class="carousel-img" src="${escHtml(src)}" alt="" loading="lazy">`).join('')}
+    </div>
+    <button class="carousel-btn carousel-prev" onclick="slideCarousel(${postId},-1)">&#8249;</button>
+    <button class="carousel-btn carousel-next" onclick="slideCarousel(${postId},1)">&#8250;</button>
+    <div class="carousel-dots" id="carousel-dots-${postId}">
+      ${images.map((_,i) => `<span class="carousel-dot ${i===0?'active':''}" onclick="goCarousel(${postId},${i})"></span>`).join('')}
+    </div>
+    <div class="carousel-counter" id="carousel-counter-${postId}">1 / ${images.length}</div>
+  </div>`;
+}
+function slideCarousel(postId, dir) {
+  const track = document.getElementById(`carousel-track-${postId}`);
+  if (!track) return;
+  const total = track.querySelectorAll('.carousel-img').length;
+  let cur = (parseInt(track.dataset.cur || '0') + dir + total) % total;
+  track.dataset.cur = cur;
+  track.style.transform = `translateX(-${cur * 100}%)`;
+  document.querySelectorAll(`#carousel-dots-${postId} .carousel-dot`).forEach((d,i) => d.classList.toggle('active', i === cur));
+  const counter = document.getElementById(`carousel-counter-${postId}`);
+  if (counter) counter.textContent = `${cur + 1} / ${total}`;
+}
+function goCarousel(postId, idx) {
+  const track = document.getElementById(`carousel-track-${postId}`);
+  if (!track) return;
+  const total = track.querySelectorAll('.carousel-img').length;
+  track.dataset.cur = idx;
+  track.style.transform = `translateX(-${idx * 100}%)`;
+  document.querySelectorAll(`#carousel-dots-${postId} .carousel-dot`).forEach((d,i) => d.classList.toggle('active', i === idx));
+  const counter = document.getElementById(`carousel-counter-${postId}`);
+  if (counter) counter.textContent = `${idx + 1} / ${total}`;
+}
 function postCard(p) {
   const isOwner = state.user && p.author?.id === state.user.id;
   const isAdmin = state.user?.is_admin;
   const canDelete = isOwner || isAdmin;
   const deleteAction = isAdmin && !isOwner ? `adminDeletePost(${p.id},this)` : `deletePost(${p.id},this)`;
+  const images = parseImages(p.image_url);
+  const safeContent = p.content.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
   return `<div class="card" data-post-id="${p.id}" onclick="navigate('profile',{userId:${p.author?.id}})" style="cursor:pointer">
     <div class="post-header">
       <div style="flex-shrink:0" onclick="event.stopPropagation();navigate('profile',{userId:${p.author?.id}})">${avatarHtml(p.author, 'sm')}</div>
@@ -228,12 +273,17 @@ function postCard(p) {
         <div class="post-author-name">${escHtml(p.author?.username || 'Usuário')}</div>
         <div class="post-author-handle">@${escHtml(p.author?.handle || '')} · ${timeAgo(p.created_at)}</div>
       </div>
-      ${canDelete ? `<button class="post-action post-delete-btn" title="Excluir post" onclick="event.stopPropagation();${deleteAction}">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
-      </button>` : ''}
+      <div style="display:flex;gap:4px">
+        ${isOwner ? `<button class="post-action" title="Editar post" onclick="event.stopPropagation();openEditPost(${p.id},'${safeContent}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>` : ''}
+        ${canDelete ? `<button class="post-action post-delete-btn" title="Excluir post" onclick="event.stopPropagation();${deleteAction}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+        </button>` : ''}
+      </div>
     </div>
     <div class="post-content" onclick="event.stopPropagation()">${escHtml(p.content)}</div>
-    ${p.image_url ? `<img class="post-image" src="${escHtml(p.image_url)}" alt="" loading="lazy" onclick="event.stopPropagation()">` : ''}
+    ${imageCarousel(images, p.id)}
     <div class="post-actions" onclick="event.stopPropagation()">
       <button class="post-action ${p.liked ? 'liked' : ''}" onclick="event.stopPropagation();toggleLike(${p.id},this)">
         <svg viewBox="0 0 24 24" fill="${p.liked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
@@ -256,6 +306,33 @@ async function deletePost(id, btn) {
     const card = btn.closest('[data-post-id]');
     if (card) { card.style.transition = 'opacity 0.2s'; card.style.opacity = '0'; setTimeout(() => card.remove(), 200); }
     toast('Post excluído!', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+/* ══════════ EDITAR POST ══════════ */
+let _editPostId = null;
+function openEditPost(id, content) {
+  _editPostId = id;
+  const ta = document.getElementById('edit-post-textarea');
+  ta.value = content;
+  document.getElementById('edit-post-char-count').textContent = 280 - content.length;
+  document.getElementById('overlay-edit-post').classList.add('open');
+  ta.focus();
+}
+function closeEditPost() {
+  _editPostId = null;
+  document.getElementById('overlay-edit-post').classList.remove('open');
+}
+async function submitEditPost() {
+  const content = document.getElementById('edit-post-textarea').value.trim();
+  if (!content) return toast('Escreva algo!', 'error');
+  try {
+    await api(`/posts/${_editPostId}`, { method: 'PATCH', body: JSON.stringify({ content }) });
+    toast('Post editado!', 'success');
+    closeEditPost();
+    if (state.currentPage === 'home') loadFeed(state.feedTab);
+    else if (state.currentPage === 'profile') loadProfilePosts();
+    else if (state.currentPage === 'search') loadHighlights();
   } catch (e) { toast(e.message, 'error'); }
 }
 
@@ -284,7 +361,7 @@ async function toggleSave(id, btn) {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-/* ── Post ── */
+/* ── Post sheet ── */
 let replyToId = null;
 let currentCommentPostId = null;
 
@@ -307,7 +384,6 @@ async function openComments(postId) {
   }
   try {
     const data = await api(`/posts/${postId}`);
-    // backend returns { ...post, replies: [...] }
     const p = data;
     origEl.innerHTML = `<div class="comment-original-card">
       <div style="display:flex;gap:10px;align-items:flex-start">
@@ -367,28 +443,50 @@ function autoResizeCommentBox(el) {
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
 
-/* ══════════ PESQUISA DE TRENDING ══════════ */
+/* ══════════ TRENDING ══════════ */
 function searchTrending(tag) {
   navigate('search');
 }
-let postImageDataUrl = null;
+let postImagesDataUrls = [];
 
 function handlePostImagePick(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    postImageDataUrl = e.target.result;
-    document.getElementById('post-img-preview-img').src = postImageDataUrl;
-    document.getElementById('post-img-preview').style.display = 'block';
-  };
-  reader.readAsDataURL(file);
+  const files = Array.from(input.files);
+  if (!files.length) return;
+  const remaining = 4 - postImagesDataUrls.length;
+  if (remaining <= 0) { toast('Máximo de 4 imagens por post', 'error'); return; }
+  const toRead = files.slice(0, remaining);
+  toRead.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      postImagesDataUrls.push(e.target.result);
+      renderPostImageThumbs();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function renderPostImageThumbs() {
+  const preview = document.getElementById('post-img-preview');
+  const thumbs = document.getElementById('post-img-thumbs');
+  if (!postImagesDataUrls.length) { preview.style.display = 'none'; return; }
+  preview.style.display = 'block';
+  thumbs.innerHTML = postImagesDataUrls.map((src, i) => `
+    <div style="position:relative;width:80px;height:80px;flex-shrink:0">
+      <img src="${src}" style="width:80px;height:80px;object-fit:cover;border-radius:8px">
+      <button onclick="removePostImage(${i})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.6);border:none;border-radius:50%;width:20px;height:20px;color:#fff;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center">&times;</button>
+    </div>`).join('');
+}
+
+function removePostImage(idx) {
+  postImagesDataUrls.splice(idx, 1);
+  renderPostImageThumbs();
 }
 
 function clearPostImage() {
-  postImageDataUrl = null;
+  postImagesDataUrls = [];
   document.getElementById('post-img-preview').style.display = 'none';
-  document.getElementById('post-img-preview-img').src = '';
+  document.getElementById('post-img-thumbs').innerHTML = '';
   document.getElementById('post-img-file').value = '';
 }
 
@@ -434,10 +532,9 @@ function openPostSheet() { document.getElementById('overlay-post').classList.add
 function closePostSheet() { document.getElementById('overlay-post').classList.remove('open'); document.getElementById('post-textarea').value = ''; clearPostImage(); document.getElementById('post-char-count').textContent = '280'; }
 async function submitPost() {
   const content = document.getElementById('post-textarea').value.trim();
-  const image_url = postImageDataUrl || undefined;
   if (!content) return toast('Escreva algo!', 'error');
   try {
-    await api('/posts', { method: 'POST', body: JSON.stringify({ content, image_url, parent_id: replyToId }) });
+    await api('/posts', { method: 'POST', body: JSON.stringify({ content, images: postImagesDataUrls, parent_id: replyToId }) });
     closePostSheet(); toast('Post publicado!', 'success');
     if (state.currentPage === 'home') loadFeed(state.feedTab);
     else if (state.currentPage === 'profile') loadProfilePosts();
@@ -527,7 +624,7 @@ function updateNotifBadge() {
   });
 }
 
-/* ══════════ PERFIL ══════════ */
+/* ══════════ PROFILE ══════════ */
 async function initProfile(userId) {
   const isMe = !userId || userId === state.user?.id;
   const c = document.getElementById('profile-content');
@@ -648,7 +745,6 @@ function initSettings() {
   applyPreferences();
   const adminSection = document.getElementById('settings-admin-section');
   if (adminSection) adminSection.style.display = state.user?.is_admin ? '' : 'none';
-  // Garante dados frescos do servidor
   api('/users/me').then(u => {
     state.user = u;
     localStorage.setItem('user', JSON.stringify(u));
