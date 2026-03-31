@@ -64,7 +64,7 @@ router.get('/popular', authMiddleware, async (req, res) => {
       LEFT JOIN likes l ON l.post_id = p.id
       WHERE p.parent_id IS NULL
       GROUP BY p.id
-      HAVING like_count >= 2
+      HAVING like_count >= 5
       ORDER BY like_count DESC, p.created_at DESC
       LIMIT 30 OFFSET ?
     `, [parseInt(req.query.offset) || 0]);
@@ -116,7 +116,6 @@ router.post('/', authMiddleware, async (req, res) => {
   const { content, image_url, images, parent_id } = req.body;
   if (!content || !content.trim()) return res.status(400).json({ error: 'Conteúdo obrigatório' });
   try {
-    // Suporta múltiplas imagens (array) ou imagem única (string)
     let finalImageUrl = null;
     const imgList = images && Array.isArray(images) ? images : (image_url ? [image_url] : []);
     const safeImgs = imgList.filter(url => {
