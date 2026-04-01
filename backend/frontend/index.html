@@ -495,7 +495,17 @@
       <textarea id="edit-post-textarea" class="input" rows="4" maxlength="280"
         oninput="document.getElementById('edit-post-char-count').textContent=280-this.value.length"></textarea>
       <div class="char-count"><span id="edit-post-char-count">280</span> restantes</div>
-      <button class="btn btn-primary btn-full" style="margin-top:10px" onclick="submitEditPost()">Salvar</button>
+      <div id="edit-post-img-wrap" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
+      <input id="edit-post-img-file" type="file" accept="image/*" multiple style="display:none" onchange="handleEditPostImagePick(this)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px">
+        <button class="sheet-media-btn" onclick="document.getElementById('edit-post-img-file').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+          </svg>
+          Adicionar foto
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="submitEditPost()">Salvar</button>
+      </div>
     </div>
   </div>
 

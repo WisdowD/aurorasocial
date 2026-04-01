@@ -273,10 +273,10 @@ function postCard(p) {
       <div style="flex-shrink:0" onclick="event.stopPropagation();navigate('profile',{userId:${p.author?.id}})">${avatarHtml(p.author, 'sm')}</div>
       <div style="flex:1;min-width:0" onclick="event.stopPropagation();navigate('profile',{userId:${p.author?.id}})">
         <div class="post-author-name">${escHtml(p.author?.username || 'Usuário')}</div>
-        <div class="post-author-handle">@${escHtml(p.author?.handle || '')} · ${timeAgo(p.created_at)}${p.updated_at ? ' · <span style="font-style:italic">editado</span>' : ''}</div>
+        <div class="post-author-handle">@${escHtml(p.author?.handle || '')} · ${timeAgo(p.created_at)}</div>
       </div>
       <div style="display:flex;gap:4px">
-        ${isOwner ? `<button class="post-action" title="Editar post" onclick="event.stopPropagation();openEditPost(${p.id},'${safeContent}')">
+        ${isOwner ? `<button class="post-action" title="Editar post" onclick="event.stopPropagation();openEditPost(${p.id},'${safeContent}',${JSON.stringify(images).replace(/"/g,"'")})">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>` : ''}
         ${canDelete ? `<button class="post-action post-delete-btn" title="Excluir post" onclick="event.stopPropagation();${deleteAction}">
@@ -313,23 +313,54 @@ async function deletePost(id, btn) {
 
 /* ══════════ EDIT POST ══════════ */
 let _editPostId = null;
-function openEditPost(id, content) {
+let _editPostImages = [];
+
+function openEditPost(id, content, images) {
   _editPostId = id;
+  _editPostImages = images ? [...images] : [];
   const ta = document.getElementById('edit-post-textarea');
   ta.value = content;
   document.getElementById('edit-post-char-count').textContent = 280 - content.length;
+  renderEditPostThumbs();
   document.getElementById('overlay-edit-post').classList.add('open');
   ta.focus();
 }
 function closeEditPost() {
   _editPostId = null;
+  _editPostImages = [];
   document.getElementById('overlay-edit-post').classList.remove('open');
+}
+function renderEditPostThumbs() {
+  const wrap = document.getElementById('edit-post-img-wrap');
+  if (!wrap) return;
+  if (!_editPostImages.length) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = _editPostImages.map((src, i) => `
+    <div style="position:relative;width:72px;height:72px;flex-shrink:0">
+      <img src="${escHtml(src)}" style="width:72px;height:72px;object-fit:cover;border-radius:8px">
+      <button onclick="removeEditPostImage(${i})" style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.65);border:none;border-radius:50%;width:20px;height:20px;color:#fff;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center">&times;</button>
+    </div>`).join('');
+}
+function removeEditPostImage(idx) {
+  _editPostImages.splice(idx, 1);
+  renderEditPostThumbs();
+}
+function handleEditPostImagePick(input) {
+  const files = Array.from(input.files);
+  const remaining = 5 - _editPostImages.length;
+  if (remaining <= 0) { toast('Máximo de 5 imagens', 'error'); return; }
+  files.slice(0, remaining).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => { _editPostImages.push(e.target.result); renderEditPostThumbs(); };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
 }
 async function submitEditPost() {
   const content = document.getElementById('edit-post-textarea').value.trim();
   if (!content) return toast('Escreva algo!', 'error');
   try {
-    await api(`/posts/${_editPostId}`, { method: 'PATCH', body: JSON.stringify({ content }) });
+    let images = _editPostImages;
+    await api(`/posts/${_editPostId}`, { method: 'PATCH', body: JSON.stringify({ content, images }) });
     toast('Post editado!', 'success');
     closeEditPost();
     if (state.currentPage === 'home') loadFeed(state.feedTab);
@@ -464,8 +495,8 @@ let postImagesDataUrls = [];
 function handlePostImagePick(input) {
   const files = Array.from(input.files);
   if (!files.length) return;
-  const remaining = 4 - postImagesDataUrls.length;
-  if (remaining <= 0) { toast('Máximo de 4 imagens por post', 'error'); return; }
+  const remaining = 5 - postImagesDataUrls.length;
+  if (remaining <= 0) { toast('Máximo de 5 imagens por post', 'error'); return; }
   const toRead = files.slice(0, remaining);
   toRead.forEach(file => {
     const reader = new FileReader();

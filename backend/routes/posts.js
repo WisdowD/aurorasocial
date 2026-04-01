@@ -3,7 +3,6 @@ const router = express.Router();
 const db = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 
-// Helper: enrich post with interaction counts
 async function enrichPost(post, userId) {
   const [r1, r2, r3, r4, r5, r6, author] = await Promise.all([
     db.get('SELECT COUNT(*) as c FROM likes WHERE post_id = ?', [post.id]),
@@ -145,17 +144,31 @@ router.post('/', authMiddleware, async (req, res) => {
   } catch (err) { console.error(err); res.status(500).json({ error: 'Erro interno' }); }
 });
 
-// PATCH /api/posts/:id — editar conteúdo do post
+// PATCH /api/posts/:id — editar conteúdo e imagens do post
 router.patch('/:id', authMiddleware, async (req, res) => {
   try {
     const post = await db.get('SELECT * FROM posts WHERE id = ?', [req.params.id]);
     if (!post) return res.status(404).json({ error: 'Post não encontrado' });
     if (post.user_id !== req.userId) return res.status(403).json({ error: 'Sem permissão' });
-    const { content } = req.body;
+    const { content, images } = req.body;
     if (!content || !content.trim()) return res.status(400).json({ error: 'Conteúdo obrigatório' });
+
+    let finalImageUrl = post.image_url; 
+    if (Array.isArray(images)) {
+      const safe = images.filter(url => {
+        if (!url) return false;
+        if (url.startsWith('http://') || url.startsWith('https://')) return true;
+        if (url.startsWith('data:image/') && url.length < 3 * 1024 * 1024) return true;
+        return false;
+      });
+      if (safe.length === 0) finalImageUrl = null;
+      else if (safe.length === 1) finalImageUrl = safe[0];
+      else finalImageUrl = JSON.stringify(safe);
+    }
+
     await db.run(
-      "UPDATE posts SET content = ?, updated_at = datetime('now') WHERE id = ?",
-      [content.trim(), req.params.id]
+      "UPDATE posts SET content = ?, image_url = ?, updated_at = datetime('now') WHERE id = ?",
+      [content.trim(), finalImageUrl, req.params.id]
     );
     const updated = await db.get('SELECT * FROM posts WHERE id = ?', [req.params.id]);
     res.json(await enrichPost(updated, req.userId));
